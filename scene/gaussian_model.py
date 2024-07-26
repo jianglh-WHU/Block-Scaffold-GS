@@ -271,7 +271,39 @@ class GaussianModel:
         self._opacity = nn.Parameter(opacities.requires_grad_(False))
         self.max_radii2D = torch.zeros((self.get_anchor.shape[0]), device="cuda")
 
+    def merge_gaussians(self, gaussians_list):
+        
+        anchor, anchor_feats, offsets, opacities, scales, rots = [], [], [], [], [], []
+        identity = []
+        
+        for i, chunk_gaussian in enumerate(gaussians_list):
+            _opacities, _scales, _rots, _anchor, _anchor_feats, _offsets = chunk_gaussian.get_attr
+            
+            opacities.append(_opacities.detach().cpu().numpy())
+            anchor.append(_anchor.detach().cpu().numpy())
+            rots.append(_rots.detach().cpu().numpy())
+            scales.append(_scales.detach().cpu().numpy())
+            anchor_feats.append(_anchor_feats.detach().cpu().numpy())
+            offsets.append(_offsets.detach().cpu().numpy())
+            identity.append(np.ones_like(_opacities.detach().cpu().numpy())*i)
+        
+        anchor = np.concatenate(anchor)
+        anchor_feats = np.concatenate(anchor_feats)
+        offsets = np.concatenate(offsets)
+        opacities = np.concatenate(opacities)
+        scales = np.concatenate(scales)
+        rots = np.concatenate(rots)   
+        identity = np.concatenate(identity)
+            
+        self._anchor_feat = nn.Parameter(torch.tensor(anchor_feats, dtype=torch.float, device="cuda").requires_grad_(True))
 
+        self._offset = nn.Parameter(torch.tensor(offsets, dtype=torch.float, device="cuda").requires_grad_(True))
+        self._anchor = nn.Parameter(torch.tensor(anchor, dtype=torch.float, device="cuda").requires_grad_(True))
+        self._opacity = nn.Parameter(torch.tensor(opacities, dtype=torch.float, device="cuda").requires_grad_(False))
+        self._scaling = nn.Parameter(torch.tensor(scales, dtype=torch.float, device="cuda").requires_grad_(True))
+        self._rotation = nn.Parameter(torch.tensor(rots, dtype=torch.float, device="cuda").requires_grad_(False))
+        self.identity = torch.tensor(identity, dtype=torch.int, device="cuda")
+    
     def training_setup(self, training_args):
         self.percent_dense = training_args.percent_dense
 

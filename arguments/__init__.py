@@ -104,6 +104,13 @@ class PipelineParams(ParamGroup):
         self.debug = False
         super().__init__(parser, "Pipeline Parameters")
 
+class BlockParams(ParamGroup):
+    def __init__(self, parser):
+        self.chunk_nums = 2
+        self.pretrained_model = ""
+        
+        super().__init__(parser, "Merge chunks parameters")
+
 class OptimizationParams(ParamGroup):
     def __init__(self, parser):
         self.iterations = 30_000
