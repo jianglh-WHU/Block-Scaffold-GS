@@ -110,7 +110,8 @@ def generate_neural_gaussians(viewpoint_camera, pc : GaussianModel, visible_mask
     else:
         return xyz, color, opacity, scaling, rot
 
-def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, scaling_modifier = 1.0, visible_mask=None, retain_grad=False):
+def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, scaling_modifier = 1.0, visible_mask=None, retain_grad=False,
+           return_depth = False):
     """
     Render the scene. 
     
@@ -166,21 +167,36 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
         cov3D_precomp = None)
     
     # Those Gaussians that were frustum culled or had a radius of 0 were not visible.
+    return_dict = {"render": rendered_image,
+            "viewspace_points": screenspace_points,
+            "visibility_filter" : radii > 0,
+            "radii": radii,
+            "gaussian_number": torch.sum(radii > 0).item()}
+    
     if is_training:
-        return {"render": rendered_image,
-                "viewspace_points": screenspace_points,
-                "visibility_filter" : radii > 0,
-                "radii": radii,
-                "selection_mask": mask,
-                "neural_opacity": neural_opacity,
-                "scaling": scaling,
-                }
-    else:
-        return {"render": rendered_image,
-                "viewspace_points": screenspace_points,
-                "visibility_filter" : radii > 0,
-                "radii": radii,
-                }
+        return_dict.update({"selection_mask": mask,
+                            "neural_opacity": neural_opacity,
+                            "scaling": scaling})
+    
+    # from gaussianpro
+    if return_depth:
+        projvect1 = viewpoint_camera.world_view_transform[:,2][:3].detach()
+        projvect2 = viewpoint_camera.world_view_transform[:,2][-1].detach()
+        means3D_depth = (xyz * projvect1.unsqueeze(0)).sum(dim=-1,keepdim=True) + projvect2
+        means3D_depth = means3D_depth.repeat(1,3)
+        render_depth, _ = rasterizer(
+            means3D = xyz,
+            means2D = screenspace_points,
+            shs = None,
+            colors_precomp = means3D_depth,
+            opacities = opacity,
+            scales = scaling,
+            rotations = rot,
+            cov3D_precomp = None)
+        render_depth = render_depth.mean(dim=0) 
+        return_dict.update({'render_depth': render_depth})
+    
+    return return_dict
 
 
 def prefilter_voxel(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, scaling_modifier = 1.0, override_color = None):

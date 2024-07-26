@@ -165,6 +165,11 @@ class OptimizationParams(ParamGroup):
         self.min_opacity = 0.005
         self.success_threshold = 0.8
         self.densify_grad_threshold = 0.0002
+        
+        # for depth supervision
+        self.start_depth = 500 # to avoid inf
+        self.depth_l1_weight_init = 1.0
+        self.depth_l1_weight_final = 0.01
 
         super().__init__(parser, "Optimization Parameters")
 
