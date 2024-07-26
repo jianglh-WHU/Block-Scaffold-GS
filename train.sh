@@ -10,6 +10,7 @@ port=$(rand 10000 30000)
 lod=0
 iterations=30_000
 warmup="False"
+data_format="matrixcity"
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         -l|--logdir) logdir="$2"; shift ;;
@@ -21,6 +22,7 @@ while [[ "$#" -gt 0 ]]; do
         --update_init_factor) update_init_factor="$2"; shift ;;
         --appearance_dim) appearance_dim="$2"; shift ;;
         --ratio) ratio="$2"; shift ;;
+        --data_format) data_format="$2"; shift ;;
         *) echo "Unknown parameter passed: $1"; exit 1 ;;
     esac
     shift
@@ -29,7 +31,9 @@ done
 time=$(date "+%Y-%m-%d_%H:%M:%S")
 
 if [ "$warmup" = "True" ]; then
-    python train.py --eval -s data/${data} --lod ${lod} --gpu ${gpu} --voxel_size ${vsize} --update_init_factor ${update_init_factor} --appearance_dim ${appearance_dim} --ratio ${ratio} --warmup --iterations ${iterations} --port $port -m outputs/${data}/${logdir}/$time
+    python train.py --eval -s data/${data} --lod ${lod} --gpu ${gpu} --voxel_size ${vsize} --update_init_factor ${update_init_factor} --appearance_dim ${appearance_dim} --ratio ${ratio} --warmup --iterations ${iterations} --port $port -m outputs/${data}/${logdir}/$time \
+        --data_format ${data_format}
 else
-    python train.py --eval -s data/${data} --lod ${lod} --gpu ${gpu} --voxel_size ${vsize} --update_init_factor ${update_init_factor} --appearance_dim ${appearance_dim} --ratio ${ratio} --iterations ${iterations} --port $port -m outputs/${data}/${logdir}/$time
+    python train.py --eval -s data/${data} --lod ${lod} --gpu ${gpu} --voxel_size ${vsize} --update_init_factor ${update_init_factor} --appearance_dim ${appearance_dim} --ratio ${ratio} --iterations ${iterations} --port $port -m outputs/${data}/${logdir}/$time \
+        --data_format ${data_format}
 fi

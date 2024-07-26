@@ -76,6 +76,20 @@ class ModelParams(ParamGroup):
         self.add_cov_dist = False
         self.add_color_dist = False
         
+        self.data_format = 'matrixcity' #blender, colmap, matrixcity, hier
+        
+        # render more attributes
+        self.render_depth = True
+        self.render_normal = False
+        self.render_opacity = False
+        
+        ## for multi block training
+        self.train_chunk = True
+        
+        # matrixcity dataset
+        self.scale = 0.1 # dataset scale
+        self.add_depth = True
+        
         super().__init__(parser, "Loading Parameters", sentinel)
 
     def extract(self, args):

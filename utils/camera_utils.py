@@ -9,16 +9,44 @@
 # For inquiries contact  george.drettakis@inria.fr
 #
 
+import cv2
 from scene.cameras import Camera
 import numpy as np
 from utils.general_utils import PILtoTorch
 from utils.graphics_utils import fov2focal
+from PIL import Image
 
 WARNED = False
 
 def loadCam(args, id, cam_info, resolution_scale):
     orig_w, orig_h = cam_info.image.size
 
+    alpha_mask = None
+    depthmap = None
+    depth_params=None
+    
+    if args.data_format == "hier":
+        # hier dataset
+        if cam_info.mask_path != "":
+            try:
+                alpha_mask = Image.open(cam_info.mask_path)
+            except FileNotFoundError:
+                print(f"Error: The mask file at path '{cam_info.mask_path}' was not found.")
+                raise
+            except IOError:
+                print(f"Error: Unable to open the image file '{cam_info.mask_path}'. It may be corrupted or an unsupported format.")
+                raise
+            except Exception as e:
+                print(f"An unexpected error occurred: {e}")
+                raise
+        else:
+            alpha_mask = None
+            
+    elif args.data_format == "matrixcity":
+        if cam_info.depth is not None:
+            depthmap = cam_info.depth
+            depth_params = {"scale":(5 / args.scale)}
+        
     if args.resolution in [1, 2, 4, 8]:
         resolution = round(orig_w/(resolution_scale * args.resolution)), round(orig_h/(resolution_scale * args.resolution))
     else:  # should be a type that converts to float
@@ -38,19 +66,12 @@ def loadCam(args, id, cam_info, resolution_scale):
         scale = float(global_down) * float(resolution_scale)
         resolution = (int(orig_w / scale), int(orig_h / scale))
 
-    resized_image_rgb = PILtoTorch(cam_info.image, resolution)
 
-    gt_image = resized_image_rgb[:3, ...]
-    loaded_mask = None
-
-    # print(f'gt_image: {gt_image.shape}')
-    if resized_image_rgb.shape[1] == 4:
-        loaded_mask = resized_image_rgb[3:4, ...]
-
-    return Camera(colmap_id=cam_info.uid, R=cam_info.R, T=cam_info.T, 
+    return Camera(resolution, colmap_id=cam_info.uid, R=cam_info.R, T=cam_info.T, 
                   FoVx=cam_info.FovX, FoVy=cam_info.FovY, 
-                  image=gt_image, gt_alpha_mask=loaded_mask,
-                  image_name=cam_info.image_name, uid=id, data_device=args.data_device)
+                  image=cam_info.image, alpha_mask=alpha_mask,
+                  image_name=cam_info.image_name, uid=id, data_device=args.data_device,
+                  data_format=args.data_format, gt_depth=depthmap, depth_params=depth_params)
 
 def cameraList_from_camInfos(cam_infos, resolution_scale, args):
     camera_list = []

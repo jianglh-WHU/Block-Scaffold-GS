@@ -9,15 +9,19 @@
 # For inquiries contact  george.drettakis@inria.fr
 #
 
+import cv2
 import torch
 from torch import nn
 import numpy as np
+import pdb
+from utils.general_utils import PILtoTorch
 from utils.graphics_utils import getWorld2View2, getProjectionMatrix
 
 class Camera(nn.Module):
-    def __init__(self, colmap_id, R, T, FoVx, FoVy, image, gt_alpha_mask,
+    def __init__(self, resolution, colmap_id, R, T, FoVx, FoVy, image, alpha_mask,
                  image_name, uid,
-                 trans=np.array([0.0, 0.0, 0.0]), scale=1.0, data_device = "cuda"
+                 trans=np.array([0.0, 0.0, 0.0]), scale=1.0, data_device = "cuda",
+                 data_format='matrixcity',gt_depth=None, depth_params=None
                  ):
         super(Camera, self).__init__()
 
@@ -36,15 +40,40 @@ class Camera(nn.Module):
             print(f"[Warning] Custom device {data_device} failed, fallback to default cuda device" )
             self.data_device = torch.device("cuda")
 
-        self.original_image = image.clamp(0.0, 1.0).to(self.data_device)
+        resized_image_rgb = PILtoTorch(image, resolution)
+        gt_image = resized_image_rgb[:3, ...]
+        if alpha_mask is not None:
+            self.alpha_mask = PILtoTorch(alpha_mask, resolution)
+        elif resized_image_rgb.shape[0] == 4:
+            self.alpha_mask = resized_image_rgb[3:4, ...].to(self.data_device)
+        else: 
+            self.alpha_mask = torch.ones_like(resized_image_rgb[0:1, ...].to(self.data_device))
+        
+        self.original_image = gt_image.clamp(0.0, 1.0).to(self.data_device)
         self.image_width = self.original_image.shape[2]
         self.image_height = self.original_image.shape[1]
 
-        if gt_alpha_mask is not None:
-            self.original_image *= gt_alpha_mask.to(self.data_device)
+        if alpha_mask is not None:
+            self.original_image *= alpha_mask.to(self.data_device)
+        
+        self.invdepthmap = None # use invdepth to avoid the floater in near places
+        
+        if gt_depth is not None:
+            gt_depth = cv2.resize(gt_depth, resolution)
+            invdepthmap = 1. / gt_depth
+            self.invdepthmap = torch.from_numpy(invdepthmap[None]).to(self.data_device)
+            
+            if self.alpha_mask is not None:
+                self.depth_mask = self.alpha_mask.clone()
+            else:
+                if data_format == 'matrixcity':
+                    self.depth_mask = gt_depth < depth_params['scale']
+                else:
+                    self.depth_mask = torch.ones_like(self.invdepthmap > 0)
+                
         else:
-            self.original_image *= torch.ones((1, self.image_height, self.image_width), device=self.data_device)
-
+            self.invdepthmap = None
+            
         self.zfar = 100.0
         self.znear = 0.01
 

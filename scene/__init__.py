@@ -41,11 +41,15 @@ class Scene:
         self.train_cameras = {}
         self.test_cameras = {}
 
-        if os.path.exists(os.path.join(args.source_path, "sparse")):
-            scene_info = sceneLoadTypeCallbacks["Colmap"](args.source_path, args.images, args.eval, args.lod)
-        elif os.path.exists(os.path.join(args.source_path, "transforms_train.json")):
-            print("Found transforms_train.json file, assuming Blender data set!")
+        if args.data_format == 'blender':
+            print("Use Blender data set!")
             scene_info = sceneLoadTypeCallbacks["Blender"](args.source_path, args.white_background, args.eval, ply_path=ply_path)
+        elif args.data_format == 'colmap':
+            print("Use Colmap data set!")
+            scene_info = sceneLoadTypeCallbacks["Colmap"](args.source_path, args.images, args.eval, args.lod)
+        elif args.data_format == 'matrixcity':
+            print("Use matrixcity data set!")
+            scene_info = sceneLoadTypeCallbacks["matrixcity"](args.source_path, args.eval, data_scale=args.scale, add_depth=args.add_depth)
         else:
             assert False, "Could not recognize scene type!"
 

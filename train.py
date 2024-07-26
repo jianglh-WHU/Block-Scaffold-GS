@@ -153,7 +153,9 @@ def training(dataset, opt, pipe, dataset_name, testing_iterations, saving_iterat
             ema_loss_for_log = 0.4 * loss.item() + 0.6 * ema_loss_for_log
 
             if iteration % 10 == 0:
-                progress_bar.set_postfix({"Loss": f"{ema_loss_for_log:.{7}f}"})
+                psnr_log=psnr(image, gt_image).mean().double()
+                anchor_prim = len(gaussians.get_anchor)
+                progress_bar.set_postfix({"Loss": f"{ema_loss_for_log:.{7}f}","psnr":f"{psnr_log:.{3}f}","GS_num":f"{anchor_prim}"})
                 progress_bar.update(10)
             if iteration == opt.iterations:
                 progress_bar.close()
