@@ -51,6 +51,9 @@ class Scene:
         elif args.data_format == 'matrixcity':
             print("Use matrixcity data set!")
             scene_info = sceneLoadTypeCallbacks["matrixcity"](args.source_path, args.eval, data_scale=args.scale, add_depth=args.add_depth)
+        elif args.data_format == 'hier':
+            print("Use hierarchical-3dgs data set!")
+            scene_info = sceneLoadTypeCallbacks["hier"](args.source_path, args.images, args.alpha_masks, args.depths, args.eval, args.train_test_exp)
         else:
             assert False, "Could not recognize scene type!"
 

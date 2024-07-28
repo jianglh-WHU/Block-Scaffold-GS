@@ -18,6 +18,7 @@ from typing import NamedTuple
 from colorama import Fore, init, Style
 from scene.colmap_loader import read_extrinsics_text, read_intrinsics_text, qvec2rotmat, \
     read_extrinsics_binary, read_intrinsics_binary, read_points3D_binary, read_points3D_text
+from scene.hier_reader import readHierInfo
 from scene.matrixcity_reader import readMatrixCityInfo
 from utils.graphics_utils import getWorld2View2, focal2fov, fov2focal
 import numpy as np
@@ -333,5 +334,6 @@ def readNerfSyntheticInfo(path, white_background, eval, extension=".png", ply_pa
 sceneLoadTypeCallbacks = {
     "Colmap": readColmapSceneInfo,
     "Blender": readNerfSyntheticInfo,
-    "matrixcity": readMatrixCityInfo
+    "matrixcity": readMatrixCityInfo,
+    "hier": readHierInfo
 }

@@ -28,19 +28,10 @@ def loadCam(args, id, cam_info, resolution_scale):
     if args.data_format == "hier":
         # hier dataset
         if cam_info.mask_path != "":
-            try:
-                alpha_mask = Image.open(cam_info.mask_path)
-            except FileNotFoundError:
-                print(f"Error: The mask file at path '{cam_info.mask_path}' was not found.")
-                raise
-            except IOError:
-                print(f"Error: Unable to open the image file '{cam_info.mask_path}'. It may be corrupted or an unsupported format.")
-                raise
-            except Exception as e:
-                print(f"An unexpected error occurred: {e}")
-                raise
-        else:
-            alpha_mask = None
+            alpha_mask = Image.open(cam_info.mask_path)
+        if cam_info.depth_path != "":
+            depthmap = cv2.imread(cam_info.depth_path, -1).astype(np.float32) / float(2**16) # invdepthmap
+            depth_params = cam_info.depth_params
             
     elif args.data_format == "matrixcity":
         if cam_info.depth is not None:

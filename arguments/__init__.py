@@ -58,8 +58,11 @@ class ModelParams(ParamGroup):
         self._source_path = ""
         self._model_path = ""
         self._images = "images"
+        self._alpha_masks = ""
+        self._depths = ""
         self._resolution = -1
         self._white_background = False
+        self.train_test_exp = False # Include the left half of the test images in the train set to optimize exposures
         self.data_device = "cuda"
         self.eval = False
         self.lod = 0
@@ -79,7 +82,7 @@ class ModelParams(ParamGroup):
         self.data_format = 'matrixcity' #blender, colmap, matrixcity, hier
         
         # render more attributes
-        self.render_depth = True
+        self.render_depth = False
         self.render_normal = False
         self.render_opacity = False
         

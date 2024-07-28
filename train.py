@@ -146,6 +146,11 @@ def training(dataset, opt, pipe, dataset_name, testing_iterations, saving_iterat
             invDepth = 1./render_depth
             
         gt_image = viewpoint_cam.original_image.cuda()
+        
+        if viewpoint_cam.alpha_mask is not None:
+            alpha_mask = viewpoint_cam.alpha_mask.cuda()
+            image *= alpha_mask
+            
         Ll1 = l1_loss(image, gt_image)
 
         ssim_loss = (1.0 - ssim(image, gt_image))
@@ -173,7 +178,10 @@ def training(dataset, opt, pipe, dataset_name, testing_iterations, saving_iterat
             ema_Ll1depth_for_log = 0.4 * Ll1depth + 0.6 * ema_Ll1depth_for_log
 
             if iteration % 10 == 0:
-                psnr_log=psnr(image, gt_image).mean().double()
+                if viewpoint_cam.alpha_mask is not None:
+                    psnr_log = psnr(image*alpha_mask, gt_image*alpha_mask).mean().double()
+                else:
+                    psnr_log = psnr(image, gt_image).mean().double()
                 anchor_prim = len(gaussians.get_anchor)
                 progress_bar.set_postfix({"Loss": f"{ema_loss_for_log:.{7}f}","Depth Loss": f"{ema_Ll1depth_for_log:.{7}f}","psnr":f"{psnr_log:.{3}f}","GS_num":f"{anchor_prim}"})
                 progress_bar.update(10)

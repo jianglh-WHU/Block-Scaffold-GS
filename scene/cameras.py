@@ -57,19 +57,32 @@ class Camera(nn.Module):
             self.original_image *= alpha_mask.to(self.data_device)
         
         self.invdepthmap = None # use invdepth to avoid the floater in near places
+        self.depth_reliable = False
         
         if gt_depth is not None:
-            gt_depth = torch.from_numpy(cv2.resize(gt_depth, resolution)[None])
-            invdepthmap = 1. / gt_depth
-            self.invdepthmap = invdepthmap.to(self.data_device)
-            
-            if data_format == 'matrixcity':
-                self.depth_mask = gt_depth < depth_params['scale']
-            else:
+            if data_format == 'hier':
+                invdepthmapScaled = gt_depth * depth_params["scale"] + depth_params["offset"]
+                invdepthmapScaled = cv2.resize(invdepthmapScaled, resolution)
+                invdepthmapScaled[invdepthmapScaled < 0] = 0
+                if invdepthmapScaled.ndim != 2:
+                    invdepthmapScaled = invdepthmapScaled[..., 0]
+                self.invdepthmap = torch.from_numpy(invdepthmapScaled[None]).to(self.data_device)
+                
                 if self.alpha_mask is not None:
                     self.depth_mask = self.alpha_mask.clone()
                 else:
                     self.depth_mask = torch.ones_like(self.invdepthmap > 0)
+                    
+                if depth_params["scale"] < 0.2 * depth_params["med_scale"] or depth_params["scale"] > 5 * depth_params["med_scale"]: 
+                    self.depth_mask *= 0
+                else:
+                    self.depth_reliable = True
+                
+            elif data_format == 'matrixcity':
+                gt_depth = torch.from_numpy(cv2.resize(gt_depth, resolution)[None])
+                invdepthmap = 1. / gt_depth
+                self.invdepthmap = invdepthmap.to(self.data_device)
+                self.depth_mask = gt_depth < depth_params['scale']
                 
         else:
             self.invdepthmap = None
