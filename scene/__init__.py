@@ -16,7 +16,7 @@ from utils.system_utils import searchForMaxIteration
 from scene.dataset_readers import sceneLoadTypeCallbacks
 from scene.gaussian_model import GaussianModel
 from arguments import ModelParams
-from utils.camera_utils import cameraList_from_camInfos, camera_to_JSON
+from utils.camera_utils import CameraDataset, cameraList_from_camInfos, camera_to_JSON
 
 class Scene:
 
@@ -86,11 +86,17 @@ class Scene:
         # print(f'self.cameras_extent: {self.cameras_extent}')
 
         for resolution_scale in resolution_scales:
-            print("Loading Training Cameras")
-            self.train_cameras[resolution_scale] = cameraList_from_camInfos(scene_info.train_cameras, resolution_scale, args)
-            print("Loading Test Cameras")
-            self.test_cameras[resolution_scale] = cameraList_from_camInfos(scene_info.test_cameras, resolution_scale, args)
+            # print("Loading Training Cameras")
+            # self.train_cameras[resolution_scale] = cameraList_from_camInfos(scene_info.train_cameras, resolution_scale, args)
+            # print("Loading Test Cameras")
+            # self.test_cameras[resolution_scale] = cameraList_from_camInfos(scene_info.test_cameras, resolution_scale, args)
 
+            print("Making Training Dataset")
+            self.train_cameras[resolution_scale] = CameraDataset(scene_info.train_cameras, args, resolution_scale)
+
+            print("Making Test Dataset")
+            self.test_cameras[resolution_scale] = CameraDataset(scene_info.test_cameras, args, resolution_scale)
+            
         if self.loaded_iter:
             self.gaussians.load_ply_sparse_gaussian(os.path.join(self.model_path,
                                                            "point_cloud",

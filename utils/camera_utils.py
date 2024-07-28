@@ -10,6 +10,7 @@
 #
 
 import cv2
+import torch
 from scene.cameras import Camera
 import numpy as np
 from utils.general_utils import PILtoTorch
@@ -95,3 +96,24 @@ def camera_to_JSON(id, camera : Camera):
     return camera_entry
 
 
+class CameraDataset(torch.utils.data.Dataset):
+  'Characterizes a dataset for PyTorch'
+  def __init__(self, list_cam_infos, args, resolution_scales):
+        'Initialization'
+        self.resolution_scales = resolution_scales
+        self.list_cam_infos = list_cam_infos
+        self.args = args
+        self.args.data_device = 'cpu'
+
+  def __len__(self):
+        'Denotes the total number of samples'
+        return len(self.list_cam_infos)
+
+  def __getitem__(self, index):
+        'Generates one sample of data'
+
+        # Select sample
+        info = self.list_cam_infos[index]
+        X = loadCam(self.args, index, info, self.resolution_scales)
+
+        return X
