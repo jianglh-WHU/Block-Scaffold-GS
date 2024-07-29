@@ -88,7 +88,8 @@ def training(dataset, opt, pipe, dataset_name, testing_iterations, saving_iterat
     tb_writer = prepare_output_and_logger(dataset)
     gaussians = GaussianModel(dataset.feat_dim, dataset.n_offsets, dataset.voxel_size, dataset.update_depth, dataset.update_init_factor, dataset.update_hierachy_factor, dataset.use_feat_bank, 
                               dataset.appearance_dim, dataset.ratio, dataset.add_opacity_dist, dataset.add_cov_dist, dataset.add_color_dist)
-    scene = Scene(dataset, gaussians, ply_path=ply_path, shuffle=False)
+    # scene = Scene(dataset, gaussians, ply_path=ply_path, shuffle=False)
+    scene = Scene(dataset, gaussians, ply_path=ply_path, shuffle=True)
     gaussians.training_setup(opt)
     if checkpoint:
         (model_params, first_iter) = torch.load(checkpoint)
@@ -186,6 +187,10 @@ def training(dataset, opt, pipe, dataset_name, testing_iterations, saving_iterat
                         logger.info("\n[ITER {}] Saving Gaussians".format(iteration))
                         scene.save(iteration)
                     
+                    if iteration == opt.iterations:
+                        progress_bar.close()
+                        return
+                    
                     # densification
                     if iteration < opt.update_until and iteration > opt.start_stat:
                         # add statis
@@ -260,6 +265,11 @@ def training_report(tb_writer, dataset_name, iteration, Ll1, loss, l1_loss, elap
                     errormap_list = []
 
                 for idx, viewpoint in enumerate(config['cameras']):
+                    viewpoint.world_view_transform = viewpoint.world_view_transform.cuda()
+                    viewpoint.projection_matrix = viewpoint.projection_matrix.cuda()
+                    viewpoint.full_proj_transform = viewpoint.full_proj_transform.cuda()
+                    viewpoint.camera_center = viewpoint.camera_center.cuda()
+                    
                     voxel_visible_mask = prefilter_voxel(viewpoint, scene.gaussians, *renderArgs)
                     image = torch.clamp(renderFunc(viewpoint, scene.gaussians, *renderArgs, visible_mask=voxel_visible_mask)["render"], 0.0, 1.0)
                     gt_image = torch.clamp(viewpoint.original_image.to("cuda"), 0.0, 1.0)
@@ -275,6 +285,11 @@ def training_report(tb_writer, dataset_name, iteration, Ll1, loss, l1_loss, elap
                             tb_writer.add_images(f'{dataset_name}/'+config['name'] + "_view_{}/ground_truth".format(viewpoint.image_name), gt_image[None], global_step=iteration)
                             if wandb:
                                 gt_image_list.append(gt_image[None])
+
+                    if viewpoint.alpha_mask is not None:
+                        alpha_mask = viewpoint.alpha_mask.cuda()
+                        image = image*alpha_mask
+                        gt_image = gt_image*alpha_mask
 
                     l1_test += l1_loss(image, gt_image).mean().double()
                     psnr_test += psnr(image, gt_image).mean().double()
@@ -313,6 +328,11 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
     per_view_dict = {}
     for idx, view in enumerate(tqdm(views, desc="Rendering progress")):
         
+        view.world_view_transform = view.world_view_transform.cuda()
+        view.projection_matrix = view.projection_matrix.cuda()
+        view.full_proj_transform = view.full_proj_transform.cuda()
+        view.camera_center = view.camera_center.cuda()
+        
         torch.cuda.synchronize();t_start = time.time()
         
         voxel_visible_mask = prefilter_voxel(view, gaussians, pipeline, background)
@@ -328,17 +348,17 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
 
 
         # gts
-        gt = view.original_image[0:3, :, :]
+        gt = view.original_image[0:3, :, :].cuda()
         
         # error maps
         errormap = (rendering - gt).abs()
 
 
-        name_list.append('{0:05d}'.format(idx) + ".png")
-        torchvision.utils.save_image(rendering, os.path.join(render_path, '{0:05d}'.format(idx) + ".png"))
-        torchvision.utils.save_image(errormap, os.path.join(error_path, '{0:05d}'.format(idx) + ".png"))
-        torchvision.utils.save_image(gt, os.path.join(gts_path, '{0:05d}'.format(idx) + ".png"))
-        per_view_dict['{0:05d}'.format(idx) + ".png"] = visible_count.item()
+        name_list.append(view.image_name + ".png")
+        torchvision.utils.save_image(rendering, os.path.join(render_path, view.image_name + ".png"))
+        torchvision.utils.save_image(errormap, os.path.join(error_path, view.image_name + ".png"))
+        torchvision.utils.save_image(gt, os.path.join(gts_path, view.image_name + ".png"))
+        per_view_dict[view.image_name + ".png"] = visible_count.item()
     
     with open(os.path.join(model_path, name, "ours_{}".format(iteration), "per_view_count.json"), 'w') as fp:
             json.dump(per_view_dict, fp, indent=True)
